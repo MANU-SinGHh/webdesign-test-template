@@ -3,16 +3,32 @@ layout: default
 title: Update Spreadsheet
 ---
 
-<!--These are JavaScript Libraries-->
-<!-- <script type="text/javascript" src="https://requirejs.org/docs/release/2.3.5/minified/require.js"></script> -->
-
+<!-- These are JavaScript Libraries -->
 <script type="text/javascript" src="papaparse.min.js"></script> <!-- https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.1.0/papaparse.min.js -->
 <script type="text/javascript" src="js-yaml.min.js"></script> <!-- https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js -->
 <script type="text/javascript" src="github.js"></script>
 
 <h1>Update</h1>
-<script type="text/javascript">
 
+<!-- Dropdown menu for selecting positions -->
+<select id="positionFilter">
+  <option value="all">All Positions</option>
+  <option value="PhD">PhD</option>
+  <option value="MS(R)">MS(R)</option>
+  <option value="UG">UG</option>
+  <!-- Add more options as needed -->
+</select>
+
+<!-- Grid of lab members -->
+<div class="labMembers">
+  <!-- Data from Google Sheets will be populated here -->
+</div>
+
+<!-- Textarea for displaying YAML data -->
+<textarea cols="10" rows="5" id="source" style="border: 1px solid #000; width: 100%; height: 500px;"></textarea>
+
+
+<script type="text/javascript">
     // dict of all published sheets and corresponding resource names
     var $resources = {
         team: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTG6ynloNFK3KPzuznE02mVnVjPl8qga1FdZ96YsbJl_JUd9MA0NAcK-aQKZQt6mIhTCK-NMJyTSvvM/pub?output=tsv'
@@ -43,7 +59,7 @@ title: Update Spreadsheet
     var $repo = 'webdesign-test-template';
     var $branch = 'gh-pages';
     
-    // this function extracts parameters from the URL to pass on to the javascript
+    // this function extracts parameters from the URL to pass on to the JavaScript
     function getUrlVar(key){
         var result = new RegExp(key + "=([^&]*)", "i").exec(window.location.search);
         return result && unescape(result[1]) || "";
@@ -66,6 +82,27 @@ title: Update Spreadsheet
     // variables that we will need later
     var $yaml_store = "";
     // var $resource = "";
+
+    // Function to filter lab members based on selected positions
+    function filterMembers() {
+      var selectedPositions = document.getElementById('positionFilter').value;
+      var members = document.querySelectorAll('.labMembers .member');
+
+      members.forEach(function(member) {
+        var position = member.classList.contains(selectedPositions);
+        if (selectedPositions === 'all' || position) {
+          member.style.display = 'block'; // Show member
+        } else {
+          member.style.display = 'none'; // Hide member
+        }
+      });
+    }
+
+    // Event listener for dropdown change
+    document.getElementById('positionFilter').addEventListener('change', filterMembers);
+
+    // Initialize filter on page load
+    filterMembers();
 
     function init() {
         $.each($resources, function(name, url) {
@@ -103,7 +140,6 @@ title: Update Spreadsheet
     window.addEventListener('DOMContentLoaded', init)
 
     function showInfo(results, $resource) {
-        // var GitHub = require('github-api');
         console.log($resource);
         console.log(results.data);
         console.log(results.errors);
@@ -113,19 +149,24 @@ title: Update Spreadsheet
         // data comes through as a simple array since simpleSheet is turned on
         alert("Successfully processed " + data.length + " rows for " + $resource + "!")
          
-        $items = new Array();
+        // Clear existing lab members
+        var labMembersDiv = document.querySelector('.labMembers');
+        labMembersDiv.innerHTML = '';
 
-        $.each( data, function(i, service) {
-            $p = {};
-            $.each(service, function($key, $value) {
-              $p[$key] = $value;
-            });
-            $items.push($p);
+        data.forEach(function(row) {
+          var memberDiv = document.createElement('div');
+          memberDiv.classList.add('member');
+          memberDiv.classList.add(row.position); // Add position class
+
+          // Display member name
+          var memberName = document.createTextNode(row.name);
+          memberDiv.appendChild(memberName);
+
+          // Append member div to labMembersDiv
+          labMembersDiv.appendChild(memberDiv);
         });
 
-        console.log($items);
-        
-        $yaml_dump = jsyaml.dump($items);
+        $yaml_dump = jsyaml.dump(data);
         document.getElementById('source').value = $yaml_dump;
 
         var github = new Github({token: $GHToken, auth: "oauth"});
@@ -135,4 +176,3 @@ title: Update Spreadsheet
         repo.write($branch, $writepath, $yaml_dump, 'Update ' + $resource, function(err) { console.log(err); });
     };
 </script>
-<textarea cols="10" rows="5" id="source" style="border: 1px solid #000; width: 100%; height: 500px;"></textarea>
